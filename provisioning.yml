@@ -1,0 +1,71 @@
+---
+
+- hosts: all
+  gather_facts: false
+  connection: local
+
+  tasks:
+  - name: "INCLUDES | Include vaulted credentials"
+    include_vars: group_vars/vaulted.yml
+    no_log: true
+
+  - name: "PROVISION | Create VM from template"
+    vmware_guest:
+#      validate_certs: false
+      hostname: "{{ vcenter_host }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ vcenter_password }}"
+      datacenter: "{{ datacenter }}"
+      name: "{{ name }}"
+      folder: "{{ folder }}"
+      template: "{{ vmtemplate }}"
+      state: poweredon
+      esxi_hostname: "{{ esxi_host }}"
+      hardware:
+        num_cpus: "{{ cpu }}"
+        memory_mb: "{{ mem_mb }}"
+      disk:
+        - size_gb: "{{ disk }}"
+          type: thin
+          datastore: "{{ datastore }}"
+      wait_for_ip_address: yes
+    register: new_vm
+
+  - name: "NETWORK | Change the IP address"
+    local_action:
+      module: vmware_vm_shell
+      hostname: "{{ vcenter_host }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ vcenter_password }}"
+      datacenter: "{{ datacenter }}"
+      vm_id: "{{ name }}"
+      vm_username: root
+      vm_password: "{{ rooter }}"
+      vm_shell: /bin/sed
+      vm_shell_args: " -i 's/192.168.30.180/{{ server_ip }}/' /etc/sysconfig/network-scripts/ifcfg-ens192" 
+
+  - name: "REBOOT | Reboot to ensure network settings take effect"
+    local_action:
+      module: vmware_vm_shell
+      hostname: "{{ vcenter_host }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ vcenter_password }}"
+      datacenter: "{{ datacenter }}"
+      vm_id: "{{ name }}"
+      vm_username: root
+      vm_password: "{{ rooter }}"
+      vm_shell: /sbin/shutdown
+      vm_shell_args: " -r now" 
+
+  - name: "REBOOT | Wait for server to come back"
+    local_action: wait_for host={{ server_ip }} port=22 state=started delay=30 timeout=300
+
+- hosts: all
+  gather_facts: true
+  connection: smart
+
+  roles:
+    - role: common
+
+- include: disk_resize.yml
+  when: disk > 20
