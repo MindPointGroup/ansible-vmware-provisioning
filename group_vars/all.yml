@@ -1,0 +1,9 @@
+---
+
+# VCenter Stuff
+vcenter_username: administrator@vmsso.local
+validate_certs: false
+vcenter_host: 192.168.30.3
+datacenter: ourdc
+cluster: ourcluster
+datastore: ourdatastore

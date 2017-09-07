@@ -1,0 +1,24 @@
+---
+# JIRA
+
+name: p-rhel7-03
+cpu: 8
+mem_mb: 24576
+disk: 231
+server_ip: 192.168.1.22
+next_part: '3'
+mount:
+  - part: /dev/rhel/root
+    size: 10G    # +8G
+  - part: /dev/rhel/opt
+    size: 30G    # +28G
+  - part: /dev/rhel/home
+    size: 20G    # +15G
+  - part: /dev/rhel/tmp
+    size: 10G    # +8G
+  - part: /dev/rhel/var
+    size: 100G   # +98G
+  - part: /dev/rhel/var_log
+    size: 30G    # +28G
+  - part: /dev/rhel/var_log_audit
+    size: 30G    # +28G

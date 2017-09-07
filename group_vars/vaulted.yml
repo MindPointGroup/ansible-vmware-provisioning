@@ -1,0 +1,7 @@
+---
+## This file would obviously contain real credentials for your environment
+# and would be vaulted properly. This is for demo only.
+
+rhsm_password: passwordy
+vcenter_password: passwordy
+rooter: passwordy
