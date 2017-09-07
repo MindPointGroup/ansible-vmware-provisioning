@@ -21,34 +21,27 @@
         echo: yes
       ignore_errors: yes
       register: fdisker
-      when: resize
 
     - name: "PRINT | fdisker output"
       debug:
         msg: "{{ fdisker.stdout }}"
-      when: resize
 
     - name: "DISK | Scan for new disk space"
       command: partprobe -s
-      when: resize
 
     - name: "DISK | Create a physical volume on the new space with LVM"
       command: pvcreate /dev/sda{{ next_part }}
       ignore_errors: yes
-      when: resize
 
     - name: "DISK | Extend the volume group with LVM"
       command: vgextend rhel /dev/sda{{ next_part }}
       ignore_errors: yes
-      when: resize
 
     - name: "DISK | Extend the logical volume with LVM"
       command: lvextend -L{{ item.size }} {{ item.part }}
       with_items: "{{ mount }}"
-      when: resize
       ignore_errors: yes
 
     - name: "DISK | Grow the file system into the new space"
       command: xfs_growfs -d {{ item.part }}
       with_items: "{{ mount }}"
-      when: resize
