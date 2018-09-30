@@ -3,5 +3,5 @@
 # and would be vaulted properly. This is for demo only.
 
 rhsm_password: passwordy
-vcenter_password: passwordy
-rooter: passwordy
+vcenter_password: password
+rooter: password

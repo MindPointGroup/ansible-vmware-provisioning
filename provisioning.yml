@@ -11,7 +11,7 @@
 
   - name: "PROVISION | Create VM from template"
     vmware_guest:
-#      validate_certs: false
+      validate_certs: "{{ validate_certs }}"
       hostname: "{{ vcenter_host }}"
       username: "{{ vcenter_username }}"
       password: "{{ vcenter_password }}"
@@ -42,7 +42,7 @@
       vm_username: root
       vm_password: "{{ rooter }}"
       vm_shell: /bin/sed
-      vm_shell_args: " -i 's/192.168.30.180/{{ server_ip }}/' /etc/sysconfig/network-scripts/ifcfg-ens192" 
+      vm_shell_args: " -i 's/192.168.1.180/{{ server_ip }}/' /etc/sysconfig/network-scripts/ifcfg-ens192" 
 
   - name: "REBOOT | Reboot to ensure network settings take effect"
     local_action:
@@ -74,4 +74,4 @@
     - role: common
 
 - include: disk_resize.yml
-  when: disk > 17
+  when: disk > 10
