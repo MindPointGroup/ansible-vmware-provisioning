@@ -8,18 +8,18 @@ disk: 72
 server_ip: 192.168.1.222
 next_part: '3'
 mount:
-  - part: /dev/rhel/root
+  - part: /dev/mapper/centos-root
     size: 20480MB     # +15GB
-  - part: /dev/rhel/opt
+  - part: /dev/mapper/centos-opt
     size: 10240MB     # +9GB
-  - part: /dev/rhel/home
+  - part: /devmapper/centos-home
     size: 10240MB     # +9GB
-  - part: /dev/rhel/tmp
+  - part: /devmapper/centos-tmp
     size: 10240MB     # +9GB
-  - part: /dev/rhel/var
+  - part: /devmapper/centos-var
     size: 20480MB     # +19GB
-  - part: /boot
-    size: 1024MB
+  # - part: /boot
+  #   size: 1024MB
 
 ##### DISK PARTITIONING IN OUR TEMPLATE
 # mount:
