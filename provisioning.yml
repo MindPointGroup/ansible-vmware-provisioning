@@ -17,7 +17,7 @@
       password: "{{ vcenter_password }}"
       datacenter: "{{ datacenter }}"
       name: "{{ name }}"
-      folder: '{{ vmpath|default("new_deploys") }}'
+      folder: "{{ folder }}"
       template: "{{ vmtemplate }}"
       state: poweredon
       annotation: '{{ vmnotes|default("Nothing significant to report") }}'
@@ -38,6 +38,7 @@
   - name: "NETWORK | Change the IP address"
     local_action:
       module: vmware_vm_shell
+      validate_certs: "{{ validate_certs }}"
       hostname: "{{ vcenter_host }}"
       username: "{{ vcenter_username }}"
       password: "{{ vcenter_password }}"
@@ -45,15 +46,17 @@
       vm_id: "{{ name }}"
       vm_username: root
       vm_password: "{{ rooter }}"
+      vm_shell: "{{ item.cmd }}"
       vm_shell_args: "{{ item.args }}"
     with_items:
-      - { cmd: /bin/sed, args: " -i 's/192.168.1.180/{{ priv_ipv4 }}/' /etc/sysconfig/network-scripts/ifcfg-ens192" }
+      - { cmd: /bin/sed, args: " -i 's/192.168.1.180/{{ server_ip }}/' /etc/sysconfig/network-scripts/ifcfg-ens192" }
       - { cmd: /bin/systemctl, args: " restart network" }
     when: name != "t-centos7"
 
   - name: "REBOOT | Reboot to ensure network settings take effect"
     local_action:
       module: vmware_vm_shell
+      validate_certs: "{{ validate_certs }}"
       hostname: "{{ vcenter_host }}"
       username: "{{ vcenter_username }}"
       password: "{{ vcenter_password }}"
@@ -72,7 +75,7 @@
       state: started
       delay: 30
       timeout: 300
-    when: name != "t-centos7"
+    # when: name != "t-centos7"
 
 - hosts: all
   gather_facts: true

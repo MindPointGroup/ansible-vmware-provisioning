@@ -9,3 +9,4 @@ cluster: homefarm_cluster
 datastore: syn
 vmtemplate: t-centos7
 folder: /ansiblefest2018
+port_grp: "VM Network"

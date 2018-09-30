@@ -15,7 +15,7 @@
   - name: "CLEANUP | Standard VM template cleanup"
     local_action:
       module: vmware_vm_shell
-      validate_certs: false
+      validate_certs: "{{ validate_certs }}"
       hostname: "{{ vcenter_host }}"
       username: "{{ vcenter_username }}"
       password: "{{ vcenter_password }}"
@@ -45,7 +45,7 @@
  
   - name: "TEMPLATE | Create template from VM"
     vmware_guest:
-      validate_certs: false
+      validate_certs: "{{ validate_certs }}"
       hostname: "{{ vcenter_host }}"
       username: "{{ vcenter_username }}"
       password: "{{ vcenter_password }}"
