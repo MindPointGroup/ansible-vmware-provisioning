@@ -6,17 +6,20 @@ cpu: 8
 mem_mb: 24576
 disk: 72
 server_ip: 192.168.1.222
+esxi_host: 192.168.1.20
+port_grp: "VM Network"
+datastore: ssd20
 next_part: '3'
 mount:
   - part: /dev/mapper/centos-root
     size: 20480MB     # +15GB
   - part: /dev/mapper/centos-opt
     size: 10240MB     # +9GB
-  - part: /devmapper/centos-home
+  - part: /dev/mapper/centos-home
     size: 10240MB     # +9GB
-  - part: /devmapper/centos-tmp
+  - part: /dev/mapper/centos-tmp
     size: 10240MB     # +9GB
-  - part: /devmapper/centos-var
+  - part: /dev/mapper/centos-var
     size: 20480MB     # +19GB
   # - part: /boot
   #   size: 1024MB

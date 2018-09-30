@@ -17,9 +17,10 @@
       password: "{{ vcenter_password }}"
       datacenter: "{{ datacenter }}"
       name: "{{ name }}"
-      folder: "{{ folder }}"
+      folder: '{{ vmpath|default("new_deploys") }}'
       template: "{{ vmtemplate }}"
       state: poweredon
+      annotation: '{{ vmnotes|default("Nothing significant to report") }}'
       esxi_hostname: "{{ esxi_host }}"
       hardware:
         num_cpus: "{{ cpu }}"
@@ -28,7 +29,10 @@
         - size_gb: "{{ disk }}"
           type: thin
           datastore: "{{ datastore }}"
+      networks:
+        - name: "{{ port_grp }}"
       wait_for_ip_address: yes
+    delegate_to: localhost
     register: new_vm
 
   - name: "NETWORK | Change the IP address"
@@ -41,8 +45,11 @@
       vm_id: "{{ name }}"
       vm_username: root
       vm_password: "{{ rooter }}"
-      vm_shell: /bin/sed
-      vm_shell_args: " -i 's/192.168.1.180/{{ server_ip }}/' /etc/sysconfig/network-scripts/ifcfg-ens192" 
+      vm_shell_args: "{{ item.args }}"
+    with_items:
+      - { cmd: /bin/sed, args: " -i 's/192.168.1.180/{{ priv_ipv4 }}/' /etc/sysconfig/network-scripts/ifcfg-ens192" }
+      - { cmd: /bin/systemctl, args: " restart network" }
+    when: name != "t-centos7"
 
   - name: "REBOOT | Reboot to ensure network settings take effect"
     local_action:
@@ -65,13 +72,15 @@
       state: started
       delay: 30
       timeout: 300
+    when: name != "t-centos7"
 
 - hosts: all
   gather_facts: true
   connection: smart
+  become: true
 
-  roles:
-    - role: common
+  # roles:
+  #   - role: common
 
 - include: disk_resize.yml
   when: disk > 10

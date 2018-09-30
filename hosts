@@ -1,0 +1,2 @@
+[ansiblefestivus]
+p-centos7-01 ansible_host=192.168.1.222

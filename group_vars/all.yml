@@ -7,3 +7,5 @@ vcenter_host: 192.168.1.22
 datacenter: homefarm
 cluster: homefarm_cluster
 datastore: syn
+vmtemplate: t-centos7
+folder: /ansiblefest2018

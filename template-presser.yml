@@ -1,0 +1,9 @@
+---
+## This playbook requires Ansible >2.3
+ 
+- hosts: all
+  gather_facts: true
+  connection: local
+ 
+- import_playbook: provisioning.yml
+- import_playbook: prepimage.yml

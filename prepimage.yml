@@ -1,0 +1,66 @@
+---
+ 
+- hosts: all
+  gather_facts: true
+  connection: local
+ 
+  tasks:
+  - name: "INCLUDES | Include vaulted credentials"
+    include_vars: group_vars/vaulted.yml
+    no_log: true
+ 
+  # The following prep tasks are taken from:
+  # https://access.redhat.com/solutions/198693
+  # https://lonesysadmin.net/2013/03/26/preparing-linux-template-vms/
+  - name: "CLEANUP | Standard VM template cleanup"
+    local_action:
+      module: vmware_vm_shell
+      validate_certs: false
+      hostname: "{{ vcenter_host }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ vcenter_password }}"
+      datacenter: "{{ datacenter }}"
+      folder: /templates
+      vm_id: "{{ name }}"
+      vm_username: root
+      vm_password: "{{ rooter }}"
+      vm_shell: "{{ item.cmd }}"
+      vm_shell_args: "{{ item.args }}"
+    with_items:
+      - { cmd: /usr/bin/rm, args: " -f /etc/udev/rules.d/70*" }
+      - { cmd: /usr/bin/yum, args: " clean all" }
+      - { cmd: /usr/bin/rm, args: " -rf /tmp/*" }
+      - { cmd: /usr/bin/rm, args: " -rf /var/tmp/*" }
+      - { cmd: /bin/sed, args: " -i '/^NAME=/d' /etc/sysconfig/network-scripts/ifcfg-ens192" }
+      - { cmd: /bin/sed, args: " -i '/^HWADDR=/d' /etc/sysconfig/network-scripts/ifcfg-ens192" }
+      - { cmd: /bin/sed, args: " -i '/^UUID=/d' /etc/sysconfig/network-scripts/ifcfg-ens192" }
+      - { cmd: /usr/bin/rm, args: " -rf /etc/ssh/ssh_host_*" }
+      - { cmd: /sbin/shutdown, args: " now" }
+    ignore_errors: true
+
+  - name: "WAIT | Wait for the VM to power off"
+    wait_for:
+      timeout: 60
+    delegate_to: localhost
+ 
+  - name: "TEMPLATE | Create template from VM"
+    vmware_guest:
+      validate_certs: false
+      hostname: "{{ vcenter_host }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ vcenter_password }}"
+      datacenter: "{{ datacenter }}"
+      name: "{{ name }}"
+      folder: /templates
+      is_template: true
+      state: present
+      annotation: |
+        This VM was created as part of normal template maintenance on {{ ansible_date_time.date }} using Ansible. It is a basic install of CentOS 7 using the Infrastructure Server install profile. No STIGs are applied because we do that via Ansible, but the disk partitioning is set up in accordance with STIG requirements. The file systems in the template are laid out as:
+            - /dev/mapper/centos-root   : 4096MB
+            - /dev/mapper/centos-opt    : 1020MB
+            - /dev/mapper/centos-home   : 1024MB
+            - /dev/mapper/centos-tmp    : 1024MB
+            - /dev/mapper/centos-var    : 1024MB
+            - /boot                     : 1024MB
+ 
+              This template is configured to come up with the IP address of 192.168.1.180, and our provisioning playbook then uses vmware_vm_shell to configure the end-state IP addressing in order to make the system reachable via SSH even when provisioning multiple hosts at once. Please refer questions regarding the template to the Ops team at email@yourdomain.com.
