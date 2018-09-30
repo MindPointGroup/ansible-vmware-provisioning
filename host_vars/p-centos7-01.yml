@@ -1,0 +1,38 @@
+---
+# Your CentOS Server
+
+name: p-centos7-01
+cpu: 8
+mem_mb: 24576
+disk: 72
+server_ip: 192.168.1.222
+next_part: '3'
+mount:
+  - part: /dev/rhel/root
+    size: 20480MB     # +15GB
+  - part: /dev/rhel/opt
+    size: 10240MB     # +9GB
+  - part: /dev/rhel/home
+    size: 10240MB     # +9GB
+  - part: /dev/rhel/tmp
+    size: 10240MB     # +9GB
+  - part: /dev/rhel/var
+    size: 20480MB     # +19GB
+  - part: /boot
+    size: 1024MB
+
+##### DISK PARTITIONING IN OUR TEMPLATE
+# mount:
+#   - part: /dev/rhel/root
+#     size: 4096MB
+#   - part: /dev/rhel/opt
+#     size: 1020MB
+#   - part: /dev/rhel/home
+#     size: 1024MB
+#   - part: /dev/rhel/tmp
+#     size: 1024MB
+#   - part: /dev/rhel/var
+#     size: 1024MB
+#   - part: /boot
+#     size: 1024MB
+#####
