@@ -1,8 +1,12 @@
 ---
+# This should work on Ansible >2.2
 
+# First, Do all of the provisioning and add the hosts to in-memory inventory
 - hosts: all
   gather_facts: false
   connection: local
+  vars:
+    ansible_python_interpreter: "{{ansible_playbook_python}}"
 
   tasks:
   - name: "INCLUDES | Include vaulted credentials"
@@ -21,51 +25,131 @@
       template: "{{ vmtemplate }}"
       state: poweredon
       annotation: '{{ vmnotes|default("Nothing significant to report") }}'
-      esxi_hostname: "{{ esxi_host }}"
+      cluster: "{{ cluster|default('homefarm_cluster') }}"
       hardware:
         num_cpus: "{{ cpu }}"
         memory_mb: "{{ mem_mb }}"
       disk:
-        - size_gb: "{{ disk }}"
-          type: thin
-          datastore: "{{ datastore }}"
+      - size_gb: "{{ disk }}"
+        type: thin
+        datastore: "{{ datastore }}"
       networks:
-        - name: "{{ port_grp }}"
+      - name: "{{ port_grp }}"
       wait_for_ip_address: yes
-    delegate_to: localhost
-    register: new_vm
+    register: dyn_vm
+    when: net_type == 'dhcp'
 
-  - name: "NETWORK | Change the IP address"
-    local_action:
-      module: vmware_vm_shell
+  - name: "PROVISION | Create VM from template"
+    vmware_guest:
       validate_certs: "{{ validate_certs }}"
       hostname: "{{ vcenter_host }}"
       username: "{{ vcenter_username }}"
       password: "{{ vcenter_password }}"
       datacenter: "{{ datacenter }}"
-      vm_id: "{{ name }}"
-      vm_username: root
-      vm_password: "{{ rooter }}"
-      vm_shell: "{{ item.cmd }}"
-      vm_shell_args: "{{ item.args }}"
+      name: "{{ name }}"
+      folder: "{{ folder }}"
+      template: "{{ vmtemplate }}"
+      state: poweredon
+      annotation: '{{ vmnotes|default("Nothing significant to report") }}'
+      cluster: "{{ cluster|default('homefarm_cluster') }}"
+      hardware:
+        num_cpus: "{{ cpu }}"
+        memory_mb: "{{ mem_mb }}"
+      disk:
+      - size_gb: "{{ disk }}"
+        type: thin
+        datastore: "{{ datastore }}"
+      networks:
+      - name: "{{ port_grp }}"
+        type: "{{ net_type }}"
+        ip: "{{ server_ip }}"
+        netmask: "{{ netmask }}"
+        gateway: "{{ gateway }}"
+      wait_for_ip_address: yes
+    register: stat_vm
+    when: net_type == 'static'
+
+  - name: "COMBINE | Gather dynamic and static VMs into one var"
+    set_fact:
+      new_vm: "{{ dyn_vm|combine(stat_vm) }}"
+
+  - debug:
+      msg: "{{ new_vm }}"
+
+# Notes from reading the vmware_guest network code block:
+#   Either name or a VLAN must be specified
+#   type must be in static or dynamic AND
+#     if you set type to dynamic but then specify any addressing info it will fail
+#     Type is optional parameter, if user provided IP or Subnet assume
+#       network type as 'static'
+#     If type static you must specify an IP and netmask
+#   Although MAC is included in all of the examples, it appears to be optional
+#     if a MAC is supplied, PyVmomiDeviceHelper function will be called to validate that it is valid
+
+  - name: "INVENTORY | Update temp inventory with new host"
+    add_host:
+      hostname: "{{ item.hw_name }}"
+      ansible_host: "{{ item.ipv4 }}"
+      groups: stage1
     with_items:
-      - { cmd: /bin/sed, args: " -i 's/192.168.1.180/{{ server_ip }}/' /etc/sysconfig/network-scripts/ifcfg-ens192" }
-      - { cmd: /bin/systemctl, args: " restart network" }
-    when: name != "t-centos7"
+      - "{{ new_vm.instance }}"
+      # - "{{ new_vm2.instance }}"
 
+# Second, reconfigure networking as necessary
+- hosts: stage1
+  gather_facts: true
+  connection: smart
+  become: true
+
+  tasks:
+  - name: "NETWORK | Configure the ifcfg file for the machine we just created"
+    template:
+      src: ifcfg.j2
+      dest: /etc/sysconfig/network-scripts/ifcfg-ens192
+      owner: root
+      group: root
+      mode: 0644
+    when: net_type == 'dhcp'
+
+  - name: "INVENTORY | Update the inventory file (case == DHCP)"
+    lineinfile:
+      line: "{{ name }} ansible_host={{ new_vm.instance.ipv4 }}"
+      path: "~/Documents/gitworking/ansible-vmware-provisioning/hosts"
+      regexp: "{{ name }}.*"
+      state: present
+      validate: 'ansible-inventory --list -i %s'
+    delegate_to: localhost
+    # when: net_type == 'dhcp'
+    become: false
+
+  # - name: "INVENTORY | Update the inventory file (case == static addressing)"
+  #   lineinfile:
+  #     line: "{{ name }} ansible_host={{ server_ip }}"
+  #     path: "~/Documents/gitworking/ansible-vmware-provisioning/hosts"
+  #     regexp: "{{ name }}.*"
+  #     state: present
+  #     validate: 'ansible-inventory --list -i %s'
+  #   delegate_to: localhost
+  #   when: server_ip != 'dhcp'
+  #   become: false
+
+# Need to use this instead of the new reboot module because the IP changes in the middle of task exec
   - name: "REBOOT | Reboot to ensure network settings take effect"
-    local_action:
-      module: vmware_vm_shell
+    vmware_vm_shell:
       validate_certs: "{{ validate_certs }}"
       hostname: "{{ vcenter_host }}"
       username: "{{ vcenter_username }}"
       password: "{{ vcenter_password }}"
       datacenter: "{{ datacenter }}"
-      vm_id: "{{ name }}"
+      vm_id: "{{ new_vm.instance.hw_product_uuid }}"
+      vm_id_type: uuid
       vm_username: root
       vm_password: "{{ rooter }}"
       vm_shell: /sbin/shutdown
-      vm_shell_args: " -r now" 
+      vm_shell_args: " -r now"
+    delegate_to: localhost
+    when: net_type != 'dhcp'
+    become: false
 
   - name: "REBOOT | Wait for server to come back"
     local_action: 
@@ -75,15 +159,17 @@
       state: started
       delay: 30
       timeout: 300
-    # when: name != "t-centos7"
+    when: net_type != 'dhcp'
+    become: false
 
+# Finally, apply some common role stuff (including install pexpect), and then do disk resizing
 - hosts: all
   gather_facts: true
   connection: smart
   become: true
 
-  # roles:
-  #   - role: common
+  roles:
+    - role: common
 
 - include: disk_resize.yml
   when: disk > 10
